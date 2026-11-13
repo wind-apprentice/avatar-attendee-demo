@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar Attendee — Demo Player</title>
+<!-- Content lives in content/*.js — edit those, not this file -->
+<script src="content/config.js"></script>
+<script src="content/people.js"></script>
+<script src="content/calendar.js"></script>
+<script src="content/script.js"></script>
+<style>
+  :root{
+    --teal:#0A8276; --teal-2:#0d9a8c; --teal-lt:#E6F2F0; --ink:#1D1D1D; --muted:#5f6368;
+    --meet-bg:#202124; --tile:#3c4043; --tile-2:#2b2c2f; --orange:#F97414; --green:#34a853;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#0f1113;overflow:hidden;font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #stage{width:1920px;height:1080px;flex:none;position:relative;transform-origin:center center;background:#e9eef0;overflow:hidden}
+
+  /* ---------- scenes ---------- */
+  .scene{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .6s ease}
+  .scene.on{opacity:1;pointer-events:auto}
+
+  /* ---------- calendar ---------- */
+  #calendar{background:#f6f8f9;padding:56px 72px}
+  .cal-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px}
+  .cal-head h1{font-size:44px;color:var(--ink);font-weight:700}
+  .cal-head .sub{font-size:22px;color:var(--muted)}
+  .cal-grid{display:grid;grid-template-columns:110px repeat(3,1fr);gap:0;background:#fff;border-radius:18px;box-shadow:0 2px 12px rgba(0,0,0,.06);overflow:hidden;height:820px;position:relative}
+  .cal-col-head{padding:18px 20px;font-size:22px;font-weight:600;color:var(--ink);border-bottom:1px solid #e6e9eb;background:#fafbfc}
+  .cal-times{border-right:1px solid #e6e9eb}
+  .cal-time{height:120px;font-size:18px;color:var(--muted);padding:8px 14px;border-bottom:1px dashed #edf0f1}
+  .cal-body{position:relative;border-right:1px solid #f0f2f3}
+  .cal-slot{height:120px;border-bottom:1px dashed #edf0f1}
+  .event{position:absolute;left:14px;right:14px;border-radius:14px;padding:16px 18px;font-size:20px;color:var(--ink);background:var(--teal-lt);border-left:6px solid var(--teal)}
+  .event.conflict{background:#fdecec;border-left-color:#d93025;box-shadow:0 0 0 2px #f4b4ae inset}
+  .event h3{font-size:22px;margin-bottom:6px}
+  .event .meta{font-size:17px;color:var(--muted)}
+  .badge{display:inline-block;font-size:15px;font-weight:700;color:#fff;background:#d93025;border-radius:999px;padding:3px 12px;margin-top:10px}
+  .send-btn{margin-top:14px;display:inline-flex;align-items:center;gap:10px;background:var(--teal);color:#fff;border:none;border-radius:999px;padding:12px 22px;font-size:18px;font-weight:700;cursor:pointer;transition:transform .15s,background .2s}
+  .send-btn.pressed{transform:scale(.94);background:#06655c}
+  .send-btn.sent{background:#06655c}
+  .send-btn .spin{width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:none;animation:spin 1s linear infinite}
+  .send-btn.sent .spin{display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .conflict-banner{position:absolute;top:56px;right:72px;background:#fff;border:2px solid #f4b4ae;color:#b3261e;border-radius:14px;padding:12px 20px;font-size:20px;font-weight:600}
+  #fakeCursor{position:absolute;width:34px;height:34px;left:960px;top:900px;z-index:50;transition:left 1.2s cubic-bezier(.4,0,.2,1),top 1.2s cubic-bezier(.4,0,.2,1);pointer-events:none;opacity:0}
+  #fakeCursor.show{opacity:1}
+  .toast{position:absolute;left:50%;bottom:60px;transform:translate(-50%,40px);background:var(--ink);color:#fff;font-size:22px;padding:18px 30px;border-radius:14px;opacity:0;transition:all .4s;z-index:40;display:flex;gap:14px;align-items:center}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ---------- meeting + phone ---------- */
+  #main{background:#e3e8ea}
+  #meetWin{position:absolute;left:40px;top:40px;width:1280px;height:1000px;background:var(--meet-bg);border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column}
+  .meet-top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;color:#e8eaed;font-size:20px}
+  .meet-top .title{font-weight:600}
+  .meet-top .rec{display:flex;align-items:center;gap:10px;color:#f28b82;font-size:17px}
+  .meet-top .rec i{width:12px;height:12px;border-radius:50%;background:#ea4335;display:inline-block;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.3}}
+  .meet-body{flex:1;display:flex;gap:16px;padding:0 18px 0 18px;min-height:0}
+  .tiles{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;padding-bottom:6px}
+  .tile{background:var(--tile);border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,opacity .6s,transform .6s;opacity:0;transform:scale(.96)}
+  .tile.in{opacity:1;transform:scale(1)}
+  .tile.speaking{box-shadow:0 0 0 4px #8ab4f8}
+  .tile .face{width:150px;height:150px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:64px;color:#fff;font-weight:600}
+  .tile .name{position:absolute;left:16px;bottom:14px;color:#fff;font-size:19px;font-weight:500;background:rgba(0,0,0,.35);padding:4px 10px;border-radius:8px;display:flex;gap:8px;align-items:center}
+  .ai-chip{background:var(--teal);color:#fff;font-size:13px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.5px}
+  .bars{position:absolute;right:16px;top:16px;display:flex;gap:4px;align-items:flex-end;height:26px;opacity:0;transition:opacity .2s}
+  .tile.speaking .bars{opacity:1}
+  .bars span{width:6px;background:#8ab4f8;border-radius:3px;animation:eq .9s ease-in-out infinite}
+  .bars span:nth-child(2){animation-delay:.15s}.bars span:nth-child(3){animation-delay:.3s}
+  @keyframes eq{0%,100%{height:6px}50%{height:26px}}
+  .tile.avatar{background:linear-gradient(160deg,#0b5f57,#0A8276)}
+  .tile.avatar .face{background:none;width:190px;height:190px}
+  .chat{width:380px;background:#fff;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;margin-bottom:6px}
+  .chat-head{padding:18px 20px;font-size:20px;font-weight:600;color:var(--ink);border-bottom:1px solid #eceff1}
+  .chat-list{flex:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:14px;justify-content:flex-end}
+  .cmsg{animation:pop .35s ease}
+  .cmsg .who{font-size:15px;font-weight:700;color:var(--ink);display:flex;gap:8px;align-items:center}
+  .cmsg .who .t{font-weight:400;color:var(--muted);font-size:13px}
+  .cmsg .txt{font-size:17px;color:#202124;line-height:1.4;margin-top:4px}
+  .cmsg.avatar .txt{background:var(--teal-lt);border-radius:10px;padding:10px 12px}
+  .cmsg.sys{font-size:14px;color:var(--muted);text-align:center}
+  .mention{color:var(--teal);font-weight:700}
+  @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .captions{height:86px;display:flex;align-items:center;justify-content:center;padding:0 40px}
+  .captions .cap{color:#fff;font-size:24px;background:rgba(0,0,0,.55);padding:10px 18px;border-radius:10px;max-width:1100px;opacity:0;transition:opacity .25s}
+  .captions .cap.on{opacity:1}
+  .captions .cap b{color:#8ab4f8;margin-right:10px}
+  .meet-ctrl{height:78px;display:flex;align-items:center;justify-content:center;gap:16px}
+  .meet-ctrl .c{width:54px;height:54px;border-radius:50%;background:#3c4043}
+  .meet-ctrl .c.red{background:#ea4335;width:76px;border-radius:28px}
+  .clock{position:absolute;left:26px;bottom:26px;color:#e8eaed;font-size:20px;font-variant-numeric:tabular-nums}
+
+  /* phone */
+  #phone{position:absolute;left:1360px;top:50px;width:520px;height:980px;background:#111;border-radius:60px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  #phone.buzz{animation:buzz .4s linear}
+  @keyframes buzz{0%,100%{transform:none}20%{transform:translateX(-5px) rotate(-.6deg)}40%{transform:translateX(5px) rotate(.6deg)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  .screen{width:100%;height:100%;background:#dfe7e5;border-radius:46px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .notch{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:120px;height:30px;background:#111;border-radius:20px;z-index:3}
+  .status{height:50px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 30px 4px;font-size:15px;font-weight:600;color:#111}
+  .p-head{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#f7f9f9;border-bottom:1px solid #d7dedc}
+  .p-head .av{width:44px;height:44px;border-radius:50%;overflow:hidden}
+  .p-head .n{font-size:19px;font-weight:700;color:#111}
+  .p-head .s{font-size:14px;color:#7a8a87}
+  .p-list{flex:1;overflow:hidden;padding:12px 12px;display:flex;flex-direction:column;gap:10px;justify-content:flex-end}
+  .pm{max-width:88%;font-size:17px;line-height:1.42;padding:10px 12px;border-radius:14px;white-space:pre-wrap;animation:pop .35s ease;color:#111}
+  .pm.bot{align-self:flex-start;background:#fff;border-bottom-left-radius:4px}
+  .pm.me{align-self:flex-end;background:#cfeee8;border-bottom-right-radius:4px}
+  .pm .tm{display:block;text-align:right;font-size:11px;color:#8a9a97;margin-top:4px}
+  .pm h4{font-size:17px;margin-bottom:2px}
+  .pm .sec{font-weight:700;margin-top:6px;display:block}
+  .pm .q{color:#b45309;font-weight:600}
+  .kb{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .kb span{flex:1;min-width:80px;text-align:center;font-size:15.5px;font-weight:700;color:var(--teal);background:#eef7f5;border-radius:8px;padding:7px 8px;transition:all .15s}
+  .kb span.tap{background:var(--teal);color:#fff;transform:scale(.95)}
+  .typing{align-self:flex-start;background:#fff;border-radius:14px;padding:12px 14px;display:none;gap:5px}
+  .typing.on{display:flex}
+  .typing i{width:7px;height:7px;border-radius:50%;background:#9aa;animation:dot 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+  @keyframes dot{0%,100%{opacity:.3}50%{opacity:1}}
+  .p-input{height:64px;background:#f7f9f9;border-top:1px solid #d7dedc;display:flex;align-items:center;gap:10px;padding:0 14px 6px}
+  .p-input .box{flex:1;background:#fff;border-radius:20px;padding:10px 14px;font-size:16.5px;color:#111;min-height:40px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .p-input .box.empty{color:#9aa}
+  .p-input .snd{width:40px;height:40px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center}
+  .caret{display:inline-block;width:2px;height:17px;background:var(--teal);vertical-align:middle;animation:blink 1s infinite;margin-left:1px}
+
+  /* view modes */
+  #stage.view-meeting #phone{display:none}
+  
+  #stage.view-phone #meetWin{display:none}
+  
+
+  /* overlays */
+  .skip{position:absolute;inset:0;background:rgba(10,20,20,.72);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;opacity:0;pointer-events:none;transition:opacity .4s;z-index:60}
+  .skip.on{opacity:1}
+  .skip .big{font-size:64px;font-weight:800}
+  .skip .small{font-size:26px;opacity:.85;margin-top:12px}
+  .endcard{position:absolute;inset:0;background:linear-gradient(140deg,#0b5f57,#0A8276);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .8s;z-index:70;text-align:center}
+  .endcard.on{opacity:1}
+  .endcard h1{font-size:96px;font-weight:800}
+  .endcard p{font-size:34px;margin-top:18px;opacity:.92}
+  .watermark{position:absolute;right:24px;bottom:16px;font-size:16px;color:rgba(0,0,0,.45);z-index:65}
+  .endcard .watermark{color:rgba(255,255,255,.7)}
+
+
+  /* view switcher */
+  #views{position:fixed;top:14px;right:14px;z-index:95;display:flex;gap:6px;background:rgba(20,24,24,.82);padding:6px;border-radius:999px;transition:opacity .4s}
+  #views.idle{opacity:0}
+  #views button{border:none;background:transparent;color:#fff;font-size:15px;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer;font-family:inherit}
+  #views button.on{background:#0A8276}
+  #stage.view-meeting #meetWin{left:40px;width:1840px}
+  #stage.view-phone #phone{left:50%;margin-left:-260px;transform:scale(1.04);transform-origin:top center}
+  /* start + hud */
+  #start{position:fixed;inset:0;background:rgba(10,15,15,.88);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:100;font-size:20px;text-align:center}
+  #start button{font-size:24px;font-weight:700;padding:16px 36px;border-radius:999px;border:none;background:var(--teal);color:#fff;cursor:pointer}
+  #start .row{display:flex;gap:14px}
+  #start button.ghost{background:transparent;border:2px solid #fff}
+  #start .keys{font-size:16px;opacity:.8;line-height:1.7}
+  #hud{position:fixed;left:12px;bottom:12px;background:rgba(0,0,0,.7);color:#fff;font-size:13px;padding:8px 12px;border-radius:8px;z-index:90;display:none;font-family:monospace}
+  #hud.on{display:block}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+  <!-- ================= SCENE 1: CALENDAR ================= -->
+  <section class="scene on" id="calendar">
+    <div class="cal-head">
+      <div><h1 id="calTitle"></h1><div class="sub" id="calDate"></div></div>
+    </div>
+    <div class="conflict-banner" id="calBanner"></div>
+    <div class="cal-grid" id="calGrid">
+      <div class="cal-col-head"></div>
+      <div class="cal-col-head" id="colHead1"></div>
+      <div class="cal-col-head" id="colHead2"></div>
+      <div class="cal-col-head" id="colHead3"></div>
+      <div class="cal-times" id="calTimes"></div>
+      <div class="cal-body" id="col1"></div>
+      <div class="cal-body" id="col2"></div>
+      <div class="cal-body" id="col3"></div>
+    </div>
+    <div class="watermark wm"></div>
+  </section>
+
+  <!-- ================= SCENE 2: MEETING + PHONE ================= -->
+  <section class="scene" id="main">
+    <div id="meetWin">
+      <div class="meet-top"><span class="title" id="meetTitle"></span><span class="rec"><i></i>Transcribing</span></div>
+      <div class="meet-body">
+        <div class="tiles" id="tiles"></div>
+        <div class="chat"><div class="chat-head">In-call messages</div><div class="chat-list" id="chatList"></div></div>
+      </div>
+      <div class="captions"><div class="cap" id="cap"></div></div>
+      <div class="meet-ctrl"><div class="c"></div><div class="c"></div><div class="c"></div><div class="c red"></div></div>
+      <div class="clock" id="clock">14:00</div>
+    </div>
+
+    <div id="phone"><div class="screen">
+      <div class="notch"></div>
+      <div class="status"><span id="pclock">14:00</span><span>5G ▮▮▮</span></div>
+      <div class="p-head"><div class="av" id="pAv"></div><div><div class="n" id="botName"></div><div class="s" id="botSub"></div></div></div>
+      <div class="p-list" id="pList"><div class="typing" id="typing"><i></i><i></i><i></i></div></div>
+      <div class="p-input"><div class="box empty" id="pInput">Message</div><div class="snd"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg></div></div>
+    </div></div>
+    <div class="watermark wm"></div>
+  </section>
+
+  <div class="skip" id="skip"><div class="big" id="skipBig">⏩ 3 minutes later</div><div class="small" id="skipSmall"></div></div>
+  <div class="endcard" id="endcard"><h1 id="endTitle"></h1><p id="endSub"></p><div class="watermark" id="endMark"></div></div>
+  <svg id="fakeCursor" viewBox="0 0 24 24"><path d="M4 2l15 9-7 1.5L9 20z" fill="#111" stroke="#fff" stroke-width="1.5"/></svg>
+  <div class="toast" id="toast"></div>
+</div></div>
+
+<div id="start">
+  <div style="font-size:40px;font-weight:800">Avatar Attendee · Demo Player</div>
+  <div>Concept demo · all content is scripted</div>
+  <div class="row"><button id="btnAuto">▶ Play (auto)</button><button class="ghost" id="btnManual">Step mode</button></div>
+  <div class="keys">Space = pause / resume · → = next step (step mode) · R = restart<br>1 = split view · 2 = meeting only · 3 = phone only · H = toggle HUD</div>
+</div>
+<div id="views"><button data-v="" class="on">⧉ Both</button><button data-v="view-meeting">🖥 Meeting</button><button data-v="view-phone">📱 Phone</button></div>
+<div id="hud"></div>
+
+<script>
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const { OWNER, AVATAR_NAME } = CONFIG;
+const stage = $("stage");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let manual = false, paused = false, stepIdx = 0, nextResolver = null, runId = 0;
+
+const AVATAR_SVG = `<svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="50" r="48" fill="#ffffff"/><rect x="24" y="30" width="52" height="42" rx="14" fill="#0A8276"/><circle cx="40" cy="49" r="6" fill="#fff"/><circle cx="60" cy="49" r="6" fill="#fff"/><path d="M40 61 q10 7 20 0" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/><line x1="50" y1="30" x2="50" y2="19" stroke="#0A8276" stroke-width="4"/><circle cx="50" cy="16" r="5" fill="#F97414"/></svg>`;
+$("pAv").innerHTML = AVATAR_SVG;
+
+function fit(){ const w=document.documentElement.clientWidth||innerWidth, h=document.documentElement.clientHeight||innerHeight; const s=Math.min(w/1920, h/1080); stage.style.transform=`scale(${s})`; }
+addEventListener("resize", fit); if(window.ResizeObserver) new ResizeObserver(fit).observe(document.documentElement); fit();
+
+function applyConfig(){
+  const C=CONFIG, K=CALENDAR;
+  $("calTitle").textContent=K.title; $("calDate").textContent=K.date; $("calBanner").textContent=K.banner;
+  K.columns.forEach((c,i)=>$("colHead"+(i+1)).textContent=c);
+  $("calTimes").innerHTML=K.hours.map(h=>`<div class="cal-time">${h}</div>`).join("");
+  $("meetTitle").textContent=C.meetingTitle; $("botName").textContent=C.botName; $("botSub").textContent=C.botSubtitle;
+  $("endTitle").textContent=C.endCard.title; $("endSub").textContent=C.endCard.subtitle; $("endMark").textContent=C.endCard.footnote;
+  document.querySelectorAll(".wm").forEach(w=>w.textContent=C.watermark);
+  setClock(C.startClock);
+}
+function buildCalendar(){
+  ["col1","col2","col3"].forEach(id=>{ const c=$(id); c.innerHTML=""; for(let i=0;i<CALENDAR.hours.length;i++){const d=document.createElement("div");d.className="cal-slot";c.appendChild(d);} });
+  CALENDAR.events.forEach(e=>{
+    const el=document.createElement("div");
+    el.className="event"+(e.conflict?" conflict":"");
+    el.style.top=(e.start*120+8)+"px"; el.style.height=(e.len*120*1.0+ (e.send?140:e.conflict?60:-16))+"px";
+    el.innerHTML=`<h3>${e.title}</h3><div class="meta">${e.meta}</div>`+
+      (e.conflict?`<span class="badge">Conflict</span>`:"")+
+      (e.send?`<br><button class="send-btn" id="sendBtn"><span class="spin"></span><span id="sendLabel">${CALENDAR.sendLabel}</span></button>`:"");
+    $("col"+e.col).appendChild(el);
+  });
+}
+
+function buildTiles(){
+  const t=$("tiles"); t.innerHTML="";
+  Object.entries(PEOPLE).forEach(([n,p])=>{
+    t.insertAdjacentHTML("beforeend",`<div class="tile" id="tile-${n}"><div class="bars"><span></span><span></span><span></span></div><div class="face" style="background:${p.color}">${n[0]}</div><div class="name">${n} · ${p.role}</div></div>`);
+  });
+  t.insertAdjacentHTML("beforeend",`<div class="tile avatar" id="tile-avatar"><div class="face">${AVATAR_SVG}</div><div class="name">${AVATAR_NAME} <span class="ai-chip">AI</span></div></div>`);
+}
+
+function reset(){
+  runId++; stepIdx=0; paused=false;
+  speechSynthesis.cancel();
+  buildCalendar(); buildTiles();
+  $("chatList").innerHTML=""; $("pList").innerHTML='<div class="typing" id="typing"><i></i><i></i><i></i></div>';
+  $("cap").className="cap"; applyConfig();
+  setInput("");
+  document.querySelectorAll(".scene").forEach(s=>s.classList.remove("on")); $("calendar").classList.add("on");
+  $("endcard").classList.remove("on"); $("skip").classList.remove("on"); $("fakeCursor").classList.remove("show");
+}
+
+function now(){ return $("clock").textContent; }
+function setClock(t){ $("clock").textContent=t; $("pclock").textContent=t; }
+function setInput(txt, caret){ const b=$("pInput"); if(!txt){b.className="box empty";b.textContent="Message";return;} b.className="box"; b.innerHTML=escapeHtml(txt)+(caret?'<span class="caret"></span>':''); }
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+function addChat(from, html){
+  const box=$("chatList");
+  const el=document.createElement("div");
+  if(from==="sys"){ el.className="cmsg sys"; el.textContent=html; }
+  else if(from==="avatar"){ el.className="cmsg avatar"; el.innerHTML=`<div class="who">${AVATAR_NAME} <span class="ai-chip">AI</span><span class="t">${now()}</span></div><div class="txt">${html}</div>`; }
+  else { el.className="cmsg"; el.innerHTML=`<div class="who">${from}<span class="t">${now()}</span></div><div class="txt">${html}</div>`; }
+  box.appendChild(el);
+}
+function addPhone(cls, html, buttons){
+  const list=$("pList"), typing=$("typing");
+  const el=document.createElement("div"); el.className="pm "+cls;
+  el.innerHTML=html+(buttons?`<div class="kb">${buttons.map(b=>`<span data-b="${b}">${b}</span>`).join("")}</div>`:"")+`<span class="tm">${now()}</span>`;
+  list.insertBefore(el, typing);
+  if(cls==="bot"){ const ph=$("phone"); ph.classList.remove("buzz"); void ph.offsetWidth; ph.classList.add("buzz"); beep(); }
+}
+
+let audioCtx=null;
+function beep(){ try{ audioCtx=audioCtx||new AudioContext(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.frequency.value=880; g.gain.setValueAtTime(.06,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.25); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+.26);}catch(e){} }
+
+let voices=[];
+function loadVoices(){ voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)); }
+speechSynthesis.onvoiceschanged=loadVoices; loadVoices();
+
+function speakText(text, p){
+  return new Promise(res=>{
+    const fallback=setTimeout(res, Math.max(2500, text.length*75));
+    try{
+      const u=new SpeechSynthesisUtterance(text);
+      if(voices.length) u.voice=voices[(p.browserVoice||0) % voices.length];
+      u.pitch=p.pitch||1; u.rate=p.rate||1;
+      u.onend=()=>{clearTimeout(fallback);res();}; u.onerror=()=>{clearTimeout(fallback);res();};
+      speechSynthesis.speak(u);
+    }catch(e){}
+  });
+}
+function playAudio(src){
+  // resolves true when the file played, false when it is missing (then the browser voice is used)
+  return new Promise(res=>{ const a=new Audio(src); a.onended=()=>res(true); a.onerror=()=>res(false); a.play().catch(()=>res(false)); });
+}
+
+async function moveCursorTo(el){
+  const c=$("fakeCursor"), sr=stage.getBoundingClientRect(), s=sr.width/1920, r=el.getBoundingClientRect();
+  c.classList.add("show");
+  await sleep(50);
+  c.style.left=((r.left-sr.left)/s + r.width/2 - 6)+"px";
+  c.style.top=((r.top-sr.top)/s + r.height/2 - 4)+"px";
+  await sleep(1300);
+}
+
+async function exec(st, rid){
+  switch(st.type){
+    case "wait": await sleep(st.ms); break;
+    case "clock": setClock(st.t); break;
+    case "cal_click": {
+      const b=$("sendBtn"); await moveCursorTo(b);
+      b.classList.add("pressed"); await sleep(180); b.classList.remove("pressed");
+      b.classList.add("sent"); $("sendLabel").textContent=CALENDAR.sentLabel; await sleep(700); break; }
+    case "toast": { const t=$("toast"); t.textContent=st.text; t.classList.add("show"); await sleep(st.ms||1800); t.classList.remove("show"); $("fakeCursor").classList.remove("show"); break; }
+    case "scene": document.querySelectorAll(".scene").forEach(s=>s.classList.remove("on")); $(st.to).classList.add("on"); await sleep(900); break;
+    case "join": $("tile-"+st.who).classList.add("in"); await sleep(450); break;
+    case "leave": $("tile-"+st.who).classList.remove("in"); await sleep(350); break;
+    case "chat_sys": addChat("sys", st.text); await sleep(500); break;
+    case "chat": addChat(st.from, st.text); await sleep(st.ms||1600); break;
+    case "phone_typing": $("typing").classList.add("on"); await sleep(st.ms||1000); $("typing").classList.remove("on"); break;
+    case "phone": addPhone("bot", st.html, st.buttons); await sleep(st.ms||(st.html.length>200?3800:1600)); break;
+    case "phone_tap": {
+      const bs=[...document.querySelectorAll(".kb span")].filter(s=>s.dataset.b===st.label);
+      const b=bs[bs.length-1]; if(b){ b.classList.add("tap"); await sleep(500); b.classList.remove("tap"); }
+      await sleep(300); break; }
+    case "phone_reply": {
+      for(let i=1;i<=st.text.length;i++){ if(rid!==runId) return; setInput(st.text.slice(0,i), true); await sleep(st.cps?1000/st.cps:45); }
+      await sleep(400); setInput(""); addPhone("me", escapeHtml(st.text)); await sleep(st.ms||1100); break; }
+    case "speak": {
+      const p=PEOPLE[st.who]; const tile=$("tile-"+st.who);
+      tile.classList.add("speaking"); const cap=$("cap"); cap.innerHTML=`<b>${st.who}</b>${st.text}`; cap.classList.add("on");
+      const src = st.audio || (CONFIG.useAudioFiles && st.id ? `${CONFIG.audioDir}/${st.id}.mp3` : null);
+      const played = src ? await playAudio(src) : false;
+      if(!played) await speakText(st.text, p);
+      tile.classList.remove("speaking"); cap.classList.remove("on"); await sleep(st.ms||450); break; }
+    case "skip": {
+      $("skipBig").textContent=st.big||"⏩ Later"; $("skipSmall").textContent=st.small||"";
+      $("skip").classList.add("on"); if(st.clock) setClock(st.clock); await sleep(st.ms||2200); $("skip").classList.remove("on"); await sleep(400); break; }
+    case "endcard": $("endcard").classList.add("on"); break;
+  }
+}
+
+async function run(){
+  const rid=runId;
+  while(stepIdx<SCRIPT.length && rid===runId){
+    while(paused && rid===runId) await sleep(100);
+    if(manual){ hud(); await new Promise(r=>nextResolver=r); nextResolver=null; }
+    if(rid!==runId) return;
+    const st=SCRIPT[stepIdx++]; hud(st);
+    await exec(st, rid);
+  }
+}
+function hud(st){ $("hud").textContent=`step ${stepIdx}/${SCRIPT.length}${st?" · "+st.type:""} · ${manual?"STEP":"AUTO"}${paused?" · PAUSED":""}`; }
+
+function start(m){ manual=m; $("start").style.display="none"; reset(); try{ new AudioContext().resume(); }catch(e){} run(); }
+$("btnAuto").onclick=()=>start(false);
+$("btnManual").onclick=()=>start(true);
+addEventListener("keydown",e=>{
+  if(e.code==="Space"){ e.preventDefault(); paused=!paused; if(paused) speechSynthesis.pause(); else speechSynthesis.resume(); hud(); }
+  if(e.code==="ArrowRight" && nextResolver) nextResolver();
+  if(e.key==="r"||e.key==="R"){ reset(); $("start").style.display="flex"; }
+  if(e.key==="h"||e.key==="H") $("hud").classList.toggle("on");
+  if(e.key==="1") setView("");
+  if(e.key==="2") setView("view-meeting");
+  if(e.key==="3") setView("view-phone");
+});
+
+function setView(v){ stage.className=v; document.querySelectorAll("#views button").forEach(b=>b.classList.toggle("on",b.dataset.v===v)); fit(); }
+document.querySelectorAll("#views button").forEach(b=>b.onclick=e=>{e.stopPropagation(); setView(b.dataset.v);});
+let idleT=null;
+function wake(){ $("views").classList.remove("idle"); clearTimeout(idleT); idleT=setTimeout(()=>$("views").classList.add("idle"),2500); }
+addEventListener("mousemove",wake); wake();
+applyConfig(); buildCalendar(); buildTiles();
+</script>
+</body>
+</html>
