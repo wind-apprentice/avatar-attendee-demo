@@ -98,7 +98,8 @@ Ian: { role: "CSM", color: "#8e44ad", browserVoice: 0, pitch: 1.0, rate: 1.0,
 ```
 
 - 物件的 key（`Ian`）就是 `script.js` 裡 `who` 要填的名字
-- 會議畫面目前是 2×2 格：3 位與會者加上 Avatar。新增或刪除人的話，版面會跟著改變，建議維持 3 位
+- 會議畫面是 2×2 格。目前是 2 位與會者（Ian、Edward）加上 Avatar，Avatar 會佔滿下面一整排；3 位與會者時剛好填滿四格
+- 某人的聲音不好聽，就改他的 `tts.edge`（例如 `en-US-AvaNeural`、`en-US-EmmaNeural`），再用 `--force` 重新產生；`browserVoiceNames` 是沒有 mp3 時用的瀏覽器聲音，依序找第一個存在的
 - `tts`：`tools/generate_audio.py` 產生語音時用的聲音（見第 5 節）
 
 ### 4. 會議流程與台詞 — `content/script.js`
@@ -160,7 +161,7 @@ python tools/generate_audio.py --only 04_ian --force   # 只重新產生某一�
 ```js
 { type: "phone", html:
 `<h4>🕑 Digest · 14:00–14:03</h4><span class="sec">Key points</span>• <b>Ian:</b> Customer X wants to pull their order forward
-• <b>Jenny:</b> December capacity is about 3K pcs
+• <b>Edward:</b> Impact estimate is ~4 h/week per person
 <span class="sec">❓ Questions for you</span><span class="q">Q1 · Ian:</span> Can we pull 5K pcs into December?`,
   buttons: ["Yes", "No", "Join meeting"] },
 ```
@@ -192,7 +193,7 @@ python tools/generate_audio.py --only 04_ian --force   # 只重新產生某一�
 
 ### 8. 從手機主動發問（Ask from phone）
 
-`script.js` 中「Ask from the phone」這一段示範了反方向的流程：你在手機打「Ask Jenny: …」→ Avatar 回覆已收到 → 會議 chat 出現橘色的「Question from Neo」並 @Jenny → Jenny 口頭回答 → 手機收到「Jenny answered」。依照這個順序修改，就能換成其他問題或其他人。
+`script.js` 中「Ask from the phone」這一段示範了反方向的流程：你在手機打「Ask Edward: …」→ Avatar 回覆已收到 → 會議 chat 出現橘色的「Question from Neo」並 @Edward → Edward 口頭回答 → 手機收到「Edward answered」。依照這個順序修改，就能換成其他問題或其他人。
 
 ### 9. 換一個會議主題：要改的地方
 
@@ -219,4 +220,4 @@ Settings → Pages → Source 選 `main` / root。之後就能在 `https://<user
 
 ---
 
-全部內容都是虛構的（Customer X、5K pcs、EMC 12/20 等），與任何真實客戶或專案無關。
+範例會議以「AI agent 專題報告的準備」為主題，人名和內容都只是示範用。

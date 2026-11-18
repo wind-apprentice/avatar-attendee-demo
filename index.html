@@ -61,6 +61,7 @@
   @keyframes blink{50%{opacity:.3}}
   .meet-body{flex:1;display:flex;gap:16px;padding:0 18px 0 18px;min-height:0}
   .tiles{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14px;padding-bottom:6px}
+  .tiles.odd .tile.avatar{grid-column:span 2}
   .tile{background:var(--tile);border-radius:16px;position:relative;display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,opacity .6s,transform .6s;opacity:0;transform:scale(.96)}
   .tile.in{opacity:1;transform:scale(1)}
   .tile.speaking{box-shadow:0 0 0 4px #8ab4f8}
@@ -272,6 +273,7 @@ function buildTiles(){
   Object.entries(PEOPLE).forEach(([n,p])=>{
     t.insertAdjacentHTML("beforeend",`<div class="tile" id="tile-${n}"><div class="bars"><span></span><span></span><span></span></div><div class="face" style="background:${p.color}">${n[0]}</div><div class="name">${n} · ${p.role}</div></div>`);
   });
+  t.classList.toggle("odd", Object.keys(PEOPLE).length % 2 === 0);  // 2 people + avatar: avatar spans the bottom row
   t.insertAdjacentHTML("beforeend",`<div class="tile avatar" id="tile-avatar"><div class="face">${AVATAR_SVG}</div><div class="name">${AVATAR_NAME} <span class="ai-chip">AI</span></div></div>`);
 }
 
@@ -320,7 +322,10 @@ function speakText(text, p){
     const fallback=setTimeout(res, Math.max(2500, text.length*75));
     try{
       const u=new SpeechSynthesisUtterance(text);
-      if(voices.length) u.voice=voices[(p.browserVoice||0) % voices.length];
+      if(voices.length){
+        const pref=(p.browserVoiceNames||[]).map(n=>voices.find(v=>v.name.toLowerCase().includes(n.toLowerCase()))).find(Boolean);
+        u.voice=pref||voices[(p.browserVoice||0) % voices.length];
+      }
       u.pitch=p.pitch||1; u.rate=p.rate||1;
       u.onend=()=>{clearTimeout(fallback);res();}; u.onerror=()=>{clearTimeout(fallback);res();};
       speechSynthesis.speak(u);

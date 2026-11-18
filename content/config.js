@@ -4,7 +4,7 @@
 var CONFIG = {
   OWNER: "Neo",                         // the person who can't attend
   AVATAR_NAME: "Neo’s Avatar",          // name shown on the avatar tile and in chat
-  meetingTitle: "Q4 Delivery Sync",     // top-left of the meeting window
+  meetingTitle: "AI Agent Project Sync",     // top-left of the meeting window
   startClock: "14:00",                  // clock at the start (changed later by {type:"clock"} steps)
 
   botName: "Avatar Attendee",           // phone chat header

@@ -14,7 +14,7 @@ var CALENDAR = {
   // conflict: red style + "Conflict" badge · send: shows the Send button (exactly one event)
   events: [
     { col: 1, start: 1.0, len: 1.0,  title: "Customer X Design Review", meta: "14:00–15:00 · Taipei office", conflict: true },
-    { col: 2, start: 1.0, len: 0.75, title: "Q4 Delivery Sync",         meta: "14:00–14:45 · Online meeting", conflict: true, send: true },
+    { col: 2, start: 1.0, len: 0.5,  title: "AI Agent Project Sync",    meta: "14:00–14:30 · Online meeting", conflict: true, send: true },
     { col: 3, start: 1.0, len: 1.0,  title: "PSOC Edge Training",       meta: "14:00–15:00 · Room 16F",      conflict: true },
     { col: 1, start: 3.0, len: 0.5,  title: "1:1 with manager",         meta: "16:00–16:30" },
     { col: 2, start: 0.0, len: 0.5,  title: "Lunch & learn",            meta: "13:00–13:30" },
