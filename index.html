@@ -82,6 +82,11 @@
   .cmsg .who .t{font-weight:400;color:var(--muted);font-size:13px}
   .cmsg .txt{font-size:17px;color:#202124;line-height:1.4;margin-top:4px}
   .cmsg.avatar .txt{background:var(--teal-lt);border-radius:10px;padding:10px 12px}
+  .cmsg.ask .txt{background:#fff4ea;border-left:4px solid var(--orange)}
+  .cmsg .tag{display:block;font-size:12px;font-weight:800;letter-spacing:.4px;color:var(--orange);margin-bottom:4px;text-transform:uppercase}
+  .ctyping{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px;animation:pop .3s ease}
+  .ctyping i{width:6px;height:6px;border-radius:50%;background:#9aa;animation:dot 1.2s infinite;display:inline-block}
+  .ctyping i:nth-child(2){animation-delay:.2s}.ctyping i:nth-child(3){animation-delay:.4s}
   .cmsg.sys{font-size:14px;color:var(--muted);text-align:center}
   .mention{color:var(--teal);font-weight:700}
   @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -286,11 +291,12 @@ function setClock(t){ $("clock").textContent=t; $("pclock").textContent=t; }
 function setInput(txt, caret){ const b=$("pInput"); if(!txt){b.className="box empty";b.textContent="Message";return;} b.className="box"; b.innerHTML=escapeHtml(txt)+(caret?'<span class="caret"></span>':''); }
 function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 
-function addChat(from, html){
+function addChat(from, html, variant, tag){
   const box=$("chatList");
   const el=document.createElement("div");
+  if(tag) html=`<span class="tag">${tag}</span>`+html;
   if(from==="sys"){ el.className="cmsg sys"; el.textContent=html; }
-  else if(from==="avatar"){ el.className="cmsg avatar"; el.innerHTML=`<div class="who">${AVATAR_NAME} <span class="ai-chip">AI</span><span class="t">${now()}</span></div><div class="txt">${html}</div>`; }
+  else if(from==="avatar"){ el.className="cmsg avatar"+(variant?" "+variant:""); el.innerHTML=`<div class="who">${AVATAR_NAME} <span class="ai-chip">AI</span><span class="t">${now()}</span></div><div class="txt">${html}</div>`; }
   else { el.className="cmsg"; el.innerHTML=`<div class="who">${from}<span class="t">${now()}</span></div><div class="txt">${html}</div>`; }
   box.appendChild(el);
 }
@@ -348,7 +354,11 @@ async function exec(st, rid){
     case "join": $("tile-"+st.who).classList.add("in"); await sleep(450); break;
     case "leave": $("tile-"+st.who).classList.remove("in"); await sleep(350); break;
     case "chat_sys": addChat("sys", st.text); await sleep(500); break;
-    case "chat": addChat(st.from, st.text); await sleep(st.ms||1600); break;
+    case "chat": addChat(st.from, st.text, st.variant, st.tag); await sleep(st.ms||1600); break;
+    case "chat_typing": {
+      const el=document.createElement("div"); el.className="ctyping";
+      el.innerHTML=`${AVATAR_NAME} is typing <i></i><i></i><i></i>`; $("chatList").appendChild(el);
+      await sleep(st.ms||1200); el.remove(); break; }
     case "phone_typing": $("typing").classList.add("on"); await sleep(st.ms||1000); $("typing").classList.remove("on"); break;
     case "phone": addPhone("bot", st.html, st.buttons); await sleep(st.ms||(st.html.length>200?3800:1600)); break;
     case "phone_tap": {

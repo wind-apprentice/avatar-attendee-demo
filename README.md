@@ -1,7 +1,7 @@
 # Avatar Attendee — Demo Player
 
 **Can’t attend? Stay in the loop.**
-Avatar Attendee 是一個 AI agent 的概念 demo：你無法出席會議時，派出 AI 替身（Avatar）代為參加。Avatar 會在 chat 打招呼、每隔幾分鐘把重點和問題傳到你的手機，你回覆後它再把答案貼回會議 chat，會議結束後寄出總結。
+Avatar Attendee 是一個 AI agent 的概念 demo：你無法出席會議時，派出 AI 替身（Avatar）代為參加。Avatar 會在 chat 打招呼、每隔幾分鐘把重點和問題傳到你的手機，你回覆後它再把答案貼回會議 chat；你也可以從手機主動發問，Avatar 會即時把問題貼到會議 chat，並把對方的回答傳回給你。會議結束後，Avatar 會寄出總結。
 
 > ⚠️ 這是 **concept demo（模擬 UI）**：所有畫面、台詞和訊息都是事先寫好的劇本，用來錄製展示影片，並沒有真的連上會議或 AI。
 
@@ -117,6 +117,7 @@ Ian: { role: "CSM", color: "#8e44ad", browserVoice: 0, pitch: 1.0, rate: 1.0,
 | `join` / `leave` | 與會者加入或離開（`who: "avatar"` 代表 Avatar） | `{ type: "join", who: "Ian" }` |
 | `speak` | **某人說一句話**：該格亮起、出現字幕、播放語音 | `{ type: "speak", id: "04_ian", who: "Ian", text: "..." }` |
 | `chat` | 會議 chat 訊息（`from: "avatar"` 會顯示 AI 標籤，也可以填人名） | `{ type: "chat", from: "avatar", text: "..." }` |
+| `chat_typing` | chat 中顯示「Neo’s Avatar is typing…」 | `{ type: "chat_typing", ms: 1200 }` |
 | `chat_sys` | chat 中置中的灰色系統訊息 | `{ type: "chat_sys", text: "Meeting ended" }` |
 | `phone_typing` | 手機上 bot 顯示「輸入中…」 | `{ type: "phone_typing", ms: 1300 }` |
 | `phone` | **bot 傳到手機的訊息**（支援 HTML 和按鈕） | 見下方 |
@@ -185,10 +186,15 @@ python tools/generate_audio.py --only 04_ian --force   # 只重新產生某一�
 ```
 
 - `<span class="mention">@Ian</span>` 會顯示成 teal 色的 @ 標記
+- 加上 `variant: "ask", tag: "Question from Neo"`：訊息改成橘色樣式，上方顯示小標籤。用在「你從手機發問」的訊息
 - `<br>` 是換行
 - `${O}` 會自動換成 `config.js` 的 `OWNER`（要用反引號字串才有效）
 
-### 8. 換一個會議主題：要改的地方
+### 8. 從手機主動發問（Ask from phone）
+
+`script.js` 中「Ask from the phone」這一段示範了反方向的流程：你在手機打「Ask Jenny: …」→ Avatar 回覆已收到 → 會議 chat 出現橘色的「Question from Neo」並 @Jenny → Jenny 口頭回答 → 手機收到「Jenny answered」。依照這個順序修改，就能換成其他問題或其他人。
+
+### 9. 換一個會議主題：要改的地方
 
 1. `config.js` → `meetingTitle`
 2. `calendar.js` → 有 `send: true` 那個會議的 `title`、`meta`

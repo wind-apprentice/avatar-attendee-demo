@@ -49,6 +49,19 @@ var SCRIPT = [
   // ---------- Meeting, part 2 ----------
   { type: "speak", id: "05_ian",    who: "Ian",    text: "Got it, thanks Neo. Jenny, can we reserve January capacity instead?" },
   { type: "speak", id: "06_jenny",  who: "Jenny",  text: "Yes. I’ll confirm January capacity by Friday." },
+
+  // ---------- Ask from the phone: Neo sends a question into the meeting ----------
+  { type: "clock", t: "14:05" },
+  { type: "phone_reply", text: "Ask Jenny: can we ship 200 engineering samples next week so Customer X can start EVT?" },
+  { type: "phone_typing", ms: 900 },
+  { type: "phone", html: "📨 Sending your question to the meeting chat now. I’ll tell you when Jenny answers." },
+  { type: "chat_typing", ms: 1200 },
+  { type: "chat", from: "avatar", variant: "ask", tag: "Question from Neo", text: `<span class="mention">@Jenny</span> Can we ship 200 engineering samples next week so Customer X can start EVT?`, ms: 1800 },
+  { type: "speak", id: "06b_jenny", who: "Jenny",  text: "Good question, Neo. Yes, two hundred samples can ship next Wednesday." },
+  { type: "phone_typing", ms: 1000 },
+  { type: "phone", html: "💬 <b>Jenny answered</b> (14:05)\n“Yes, 200 samples can ship next Wednesday.”", buttons: ["👍 Thanks", "Ask a follow-up"] },
+  { type: "phone_tap", label: "👍 Thanks" },
+  { type: "chat", from: "avatar", text: `Thanks, Jenny. ${O} has the answer.` },
   { type: "speak", id: "07_edward", who: "Edward", text: "I’ll update the forecast once that’s confirmed." },
   { type: "speak", id: "08_ian",    who: "Ian",    text: "Great. That’s all for today. Thanks, everyone." },
 
@@ -65,9 +78,11 @@ var SCRIPT = [
 <span class="sec">Decisions</span>• Customer X pull-in moves to the first week of January
 • Pricing unchanged this quarter
 <span class="sec">Action items</span>• <b>Jenny:</b> confirm January capacity by Fri
+• <b>Jenny:</b> ship 200 engineering samples next Wed
 • <b>Edward:</b> update the forecast
 • <b>You:</b> share the EMC test report by Fri
-<span class="sec">Q&amp;A with you</span>• Ian: pull 5K pcs into Dec? → <i>No, EMC ends Dec 20; Jan works</i>` },
+<span class="sec">Q&amp;A with you</span>• Ian asked: pull 5K pcs into Dec? → <i>No, EMC ends Dec 20; Jan works</i>
+• You asked Jenny: 200 samples next week? → <i>Yes, ships next Wed</i>` },
   { type: "wait", ms: 3500 },
   { type: "endcard" },
 ];
